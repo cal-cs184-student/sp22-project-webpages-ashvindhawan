@@ -1,7 +1,167 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 3-2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>  
+    div.padded {  
+      padding-top: 0px;  
+      padding-right: 100px;  
+      padding-bottom: 0.25in;  
+      padding-left: 100px;  
+    }  
+  </style> 
+<title>3-2: Pathtracer |  CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+<br />
+<h1 align="middle">Assignment 3.2: PathTracer</h1>
+    <h2 align="middle">Ashvin Dhawan, Ishil Puri</h2>
+
+    <div class="padded">
+
+        <p>In this assignment, we expanded upon our previous project which allowed us to render diffuse materials in order to render reflection and refraction effects as well as microfacet materials. 
+            After implementing reflection and refraction, we combined the two effects to be able to render glass materials. Each effect required us to first implement a unique BSDF followed by a sampling function that utilized the BSDF in question.
+            Overall, this project helped us further our understanding of various BSDFs, but also allowed us to gain a better grasp of the rendering pipeline from the BSDF to the sampling function. </p>
+
+    <h2 align="middle">Part 1: Mirror and Glass Materials </h2>
+        <p>In Part 1, we implemented reflection and refraction BSDF logic. This allowed us to create both mirror and glass models, the latter of which required combining both reflection and refraction. In reflection, we simply inverted the coordinates of the incident ray about the surface normal in object coordinates to generate our output ray. We then modified MirrorBSDF::sample_f method to utilize this simple reflection in order to generate mirror models.
+            We then implemented refraction using the following formula: 
+            <br>
+            <img src = "images/refraction_eq.png" width = "400px" />
+            <br>
+            where eta equals the index of refraction or the inverse of the index of refraction, depending on whether the incident ray is exiting or entering the material, respectively.
+            Next, similar to reflection, we modified RefractionBSDF::sample_f() to be able to utilize our refraction logic.
+            Creating glass models was a tad more complex. Specifically, we computed Schlick's reflection coefficient, defined as:
+            <br>
+            <img src = "images/schlick.png" width = "300px"/>
+            <br>
+            We then called coin_flip, which returns true with probability R. If coin_flip returned true, we returned a reflection, and if it returned false we returned a refraction. This allowed us to combine the two BSDF functions in order to mimic the effect of glass. 
+        </p>
+        <p>
+            The following images were rendered with 64 samples per pixel and 4 samples per light:
+        </p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/P1_CBspheres_64_4_0.png" width="480px" />
+                    <figcaption align="middle">max ray depth: 0</figcaption>
+
+                    <td align="middle">
+                    <img src="images/P1_CBspheres_64_4_1.png" width="480px" />
+                    <figcaption align="middle">max ray depth: 1</figcaption>
+                </tr>
+                
+                <tr>
+                    <td align="middle">
+                    <img src="images/P1_CBspheres_64_4_2.png" width="480px" />
+                    <figcaption align="middle">max ray depth: 2</figcaption>
+
+                    <td align="middle">
+                    <img src="images/P1_CBspheres_64_4_3.png" width="480px" />
+                    <figcaption align="middle">max ray depth: 3</figcaption>
+
+                </tr>
+
+                <tr>
+                    <td align="middle">
+                    <img src="images/P1_CBspheres_64_4_4.png" width="450px" />
+                    <figcaption align="middle">max ray depth: 4</figcaption>
+
+                    <td align="middle">
+                    <img src="images/P1_CBspheres_64_4_5.png" width="450px" />
+                    <figcaption align="middle">max ray depth: 5</figcaption>
+                    
+                    <td align="middle">
+                    <img src="images/P1_CBspheres_64_4_100.png" width="450px" />
+                    <figcaption align="middle">max ray depth: 100</figcaption>
+
+                </tr>
+            </table>
+
+        </div>
+
+        <p>
+            With very low maximum ray depths, we will not be able to observe very many reflection and refraction effects. With max_ray_depth = 0, we only see the light sources in the scene, namely the cieling light. With max_ray_depth = 1, we see the inital reflection of the light onto each sphere before hitting the screen. However, we still cannot see reflection of anything other than the primary light source. 
+        </p>
+        
+        <p> 
+            When we increase max_ray_depth to 2, we begin to see more sophisticated reflection. Specifically, the left sphere reflects light that bounces off other parts of the scene. When max_ray_depth = 3, we can finally begin to see refraction on the right sphere. This is because for refraction to occur, light must enter the sphere, exit the sphere, and then hit the screen, necessitating 3 rays to render it. However, a max_ray_depth of 3 does not allow us to see additional scene effects that we will subsequently observe.  
+        </p>
+        <p>
+            At max_ray_depth = 4, we begin to see caustic effects. As previously mentioned, refraction takes at least 3 rays, necessitating a fourth ray to capture the light on the ground as a result of refraction. This results in the more intense light that can be seen under the rightmost sphere. At this point, it is also important to note that increasing the max_ray_depth also slowly increases the ambient light in the scene, as was discussed in Project 3.1.
+        </p>
+        <p>
+            At max_ray_depth = 5, artifacts such as the small circular reflection on the right wall start to become more clear. This is yet another caustic effect, perhaps produced by light reflected from the left ball into the right ball.
+        </p>
+        <p>
+            While there are no additional apparent artifacts visible between max_ray_depth = 5 and max_ray_depth = 100, we can see an increase in the scene's ambient light as more ambient light is added to the scene as a direct result of increasing the max_ray_depth. 
+
+        </p>
+
+
+        <h2 align="middle">Part 2: Microfacet Material </h2>
+        <p>In Part 2, we implemented the Microfacet model by developing an NDF function which tells us how the microfacet normals are distributed. We are using a Beckmann distribution here which allows for input of an alpha parameter which adjusts the smoothness of a surface. Additionally, we implemented a special material (Aluminum) by using fixed wavelengths to approximate the eta and k values to produce the desired outcome of Aluminum.
+            
+        </p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/P2_dragon_005.png" width="480px" />
+                    <figcaption align="middle">alpha = 0.005</figcaption>
+
+                    <td align="middle">
+                    <img src="images/P2_dragon_05.png" width="480px" />
+                    <figcaption align="middle">alpha = 0.05</figcaption>
+                </tr>
+                
+                <tr>
+                    <td align="middle">
+                    <img src="images/P2_dragon_25.png" width="480px" />
+                    <figcaption align="middle">alpha = 0.25</figcaption>
+
+                    <td align="middle">
+                    <img src="images/P2_dragon_5.png" width="480px" />
+                    <figcaption align="middle">alpha = 0.5</figcaption>
+                </tr>
+            </table>
+
+            <p>
+                As the alpha reduces, the object becomes more shiny and when it is large the surface diffuses which makes it appear rough. Alpha refers to the roughness of the macro surface which thus far makes sense in terms of the trends in the value of alpha corresponding to the perceived shiny characteristics.
+            </p>
+
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/P2_bunny_hemisphere.png" width="480px" />
+                    <figcaption align="middle">hemisphere sampling</figcaption>
+
+                    <td align="middle">
+                    <img src="images/P2_bunny_importance.png" width="480px" />
+                    <figcaption align="middle">importance sampling</figcaption>
+                </tr>
+            </table>
+
+            <p>
+                Clearly the importance sampling signficantly improves the estimation of light and color at each pixel point as opposed to the hemisphere sampling. This is because the cosine hemisphere sampling function does not work well wth the Beckmann distribution thus we need to sample according to the shape of the Beckmann NDF and did so via importance sampling.
+            </p>
+
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/P2_bunny_alumnimum.png" width="480px" />
+                    <figcaption align="middle">Aluminum</figcaption>
+                </tr>
+            </table>
+
+        </div>
+
+</div>
+</body>
 </html>
+
+
+
+
